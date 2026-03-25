@@ -73,7 +73,7 @@ Below is the core script (the content of `Example.ipynb`). You can copy it direc
 
 ```python
 # =============================================================================
-# COMPLETE LCA WORKFLOW WITH AGE FILTERING + PAIRWISE CRAMÉR'S V
+# COMPLETE LCA WORKFLOW
 # =============================================================================
 
 # -----------------------------------------------------------------------------
