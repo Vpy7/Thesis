@@ -1,10 +1,8 @@
 import pandas as pd
-import numpy as np
-import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
+import numpy as np
 from plotly.subplots import make_subplots
 import warnings
 from sklearn.preprocessing import LabelEncoder
@@ -19,6 +17,9 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import inch
+
+import matplotlib
+matplotlib.use('Agg')
 import io
 from reportlab.platypus import Image
 
@@ -246,9 +247,6 @@ def _fmt_val(v):
 
 
 def comp_cols_full(df):
-    import numpy as np
-    import pandas as pd
-
     standard_map = {
         2: "SI", 0: "NO", 3: "AV/A",
         7: "NR", 77: "NR",
@@ -307,9 +305,6 @@ def comp_cols_full(df):
 
 
 def comp_cols_full_limited(df):
-    import numpy as np
-    import pandas as pd
-
     standard_map = {
         2: "SI", 0: "NO", 3: "AV/A",
         7: "NR", 77: "NR",
@@ -1672,6 +1667,462 @@ def _crear_tabla_completitud(final_df, cat_vars):
         ('GRID', (0,0), (-1,-1), 1, colors.black)
     ]))
     return tabla
+
+def generar_reporte_pdf(resultados, filename, final_df, cat_vars, cluster_cols, obtener_etiqueta=None):
+    if not isinstance(cluster_cols, (list, tuple, pd.Series, np.ndarray)):
+        try:
+            cluster_cols = list(cluster_cols)
+        except:
+            cluster_cols = []
+    else:
+        cluster_cols = list(cluster_cols)
+
+    doc = SimpleDocTemplate(filename, pagesize=landscape(letter), rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+    styles = getSampleStyleSheet()
+    story = []
+    
+    title_style = styles['Title']
+    story.append(Paragraph("Análisis Estadístico de Clases", title_style))
+    story.append(Spacer(1, 12))
+    
+    if 'metrics' in resultados:
+        story.append(Paragraph("0. Métricas de los Modelos", styles['Heading2']))
+        df_metrics = resultados['metrics']
+        data = [df_metrics.columns.tolist()] + df_metrics.values.tolist()
+        tabla = Table(data, repeatRows=1)
+        tabla.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.grey),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0,0), (-1,0), 10),
+            ('BOTTOMPADDING', (0,0), (-1,0), 8),
+            ('BACKGROUND', (0,1), (-1,-1), colors.beige),
+            ('GRID', (0,0), (-1,-1), 1, colors.black)
+        ]))
+        story.append(tabla)
+        story.append(Spacer(1, 12))
+    
+    story.append(Paragraph("1. Distribución de Clases", styles['Heading2']))
+    if 'distribucion' in resultados:
+        df_dist = resultados['distribucion']
+        data = [df_dist.columns.tolist()] + df_dist.values.tolist()
+        tabla = Table(data, repeatRows=1)
+        tabla.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.grey),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0,0), (-1,0), 10),
+            ('BOTTOMPADDING', (0,0), (-1,0), 8),
+            ('BACKGROUND', (0,1), (-1,-1), colors.beige),
+            ('GRID', (0,0), (-1,-1), 1, colors.black)
+        ]))
+        story.append(tabla)
+        story.append(Spacer(1, 12))
+    
+    story.append(Paragraph("2. Tablas completas de Cramér's V por agrupación", styles['Heading2']))
+    if 'cramers_completos' in resultados:
+        for k, df_cramers in resultados['cramers_completos'].items():
+            if not df_cramers.empty:
+                story.append(Paragraph(f"Agrupación: {k}", styles['Heading3']))
+                df_mostrar = df_cramers
+                data = [df_mostrar.columns.tolist()] + df_mostrar.values.tolist()
+                tabla = Table(data, repeatRows=1)
+                tabla.setStyle(TableStyle([
+                    ('BACKGROUND', (0,0), (-1,0), colors.grey),
+                    ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+                    ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                    ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0,0), (-1,0), 8),
+                    ('BOTTOMPADDING', (0,0), (-1,0), 6),
+                    ('BACKGROUND', (0,1), (-1,-1), colors.beige),
+                    ('GRID', (0,0), (-1,-1), 1, colors.black)
+                ]))
+                story.append(tabla)
+                story.append(Spacer(1, 8))
+            else:
+                story.append(Paragraph(f"Agrupación {k}: No hay datos", styles['Normal']))
+    
+    story.append(Paragraph("3. Variables más discriminantes (Top 25 por agrupación)", styles['Heading2']))
+    if 'variables_clave' in resultados:
+        for k, df_vars in resultados['variables_clave'].items():
+            if not df_vars.empty:
+                story.append(Paragraph(f"Agrupación: {k}", styles['Heading3']))
+                df_top = df_vars.head(25)
+                data = [['Variable', "Cramér's V", 'p-value', 'χ²']]
+                for _, row in df_top.iterrows():
+                    data.append([
+                        row['Variable'],
+                        f"{row['Cramers_V']:.4f}",
+                        f"{row['p_value']:.2e}",
+                        f"{row['Chi2']:.0f}"
+                    ])
+                tabla = Table(data, repeatRows=1)
+                tabla.setStyle(TableStyle([
+                    ('BACKGROUND', (0,0), (-1,0), colors.grey),
+                    ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+                    ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                    ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0,0), (-1,0), 8),
+                    ('BOTTOMPADDING', (0,0), (-1,0), 6),
+                    ('BACKGROUND', (0,1), (-1,-1), colors.beige),
+                    ('GRID', (0,0), (-1,-1), 1, colors.black)
+                ]))
+                story.append(tabla)
+                story.append(Spacer(1, 8))
+            else:
+                story.append(Paragraph(f"Agrupación {k}: No hay variables significativas", styles['Normal']))
+    
+    story.append(Paragraph("4. Perfiles de Clases (detalle)", styles['Heading2']))
+    if 'perfiles' in resultados:
+        for k, perfiles in resultados['perfiles'].items():
+            story.append(Paragraph(f"Agrupación: {k}", styles['Heading3']))
+            for perfil in perfiles:
+                story.append(Paragraph(f"Clase {perfil['Clase']}: {perfil['Tamaño']} obs ({perfil['Porcentaje']:.1f}%)", styles['Normal']))
+                
+                if not perfil['Sobre'] and not perfil['Sub']:
+                    story.append(Paragraph("  No hay variables con diferencias significativas.", styles['Normal']))
+                else:
+                    if perfil['Sobre']:
+                        story.append(Paragraph("  SOBRERREPRESENTADAS:", styles['Normal']))
+                        tabla_sobre = _crear_tabla_consolidada(perfil['Sobre'])
+                        if tabla_sobre:
+                            story.append(tabla_sobre)
+                            story.append(Spacer(1, 6))
+                    
+                    if perfil['Sub']:
+                        story.append(Paragraph("  SUBREPRESENTADAS:", styles['Normal']))
+                        tabla_sub = _crear_tabla_consolidada(perfil['Sub'])
+                        if tabla_sub:
+                            story.append(tabla_sub)
+                            story.append(Spacer(1, 6))
+                story.append(Spacer(1, 12))
+    
+    story.append(Paragraph("5. Árbol de Jerarquía de Clases", styles['Heading2']))
+    if 'jerarquia' in resultados and len(cluster_cols) >= 2:
+        try:
+            img_arbol = graficar_arbol_jerarquico(resultados['jerarquia'], cluster_cols, final_df, figsize=(9, 6))
+            if img_arbol:
+                story.append(img_arbol)
+            else:
+                story.append(Paragraph("No se pudo generar el árbol jerárquico.", styles['Normal']))
+        except Exception as e:
+            story.append(Paragraph(f"Error al generar árbol: {e}", styles['Normal']))
+        story.append(Spacer(1, 12))
+    
+    story.append(Paragraph("6. Dendrograma de Clases (Jerarquía interna)", styles['Heading2']))
+    if cluster_cols:
+        max_k_col = cluster_cols[-1]
+        img_dendro = generar_dendrograma_clases(final_df, cat_vars, max_k_col, 
+                                                variables_clave=resultados.get('variables_clave', None),
+                                                top_n=50)
+        if img_dendro:
+            story.append(img_dendro)
+        else:
+            story.append(Paragraph("No se pudo generar el dendrograma (menos de 2 clases o error).", styles['Normal']))
+    else:
+        story.append(Paragraph("No hay datos de perfiles para generar dendrograma.", styles['Normal']))
+    story.append(Spacer(1, 12))
+    
+    story.append(Paragraph("7. Anexo: Completitud de Variables", styles['Heading2']))
+    tabla_comp = _crear_tabla_completitud(final_df, cat_vars)
+    if tabla_comp:
+        story.append(tabla_comp)
+    else:
+        story.append(Paragraph("No hay variables para mostrar.", styles['Normal']))
+    story.append(Spacer(1, 12))
+    
+    doc.build(story)
+    print(f"Reporte PDF guardado como: {filename}")
+
+def analisis_interacciones_variables(df, exclude_cols=None, max_categories=10):
+    if exclude_cols is None:
+        exclude_cols = []
+    
+    vars_to_analyze = [col for col in df.columns if col not in exclude_cols]
+    
+    df_proc = pd.DataFrame(index=df.index)
+    for col in vars_to_analyze:
+        data = df[col].copy()
+        
+        if pd.api.types.is_numeric_dtype(data):
+            if data.nunique() > 4:
+                try:
+                    data = pd.qcut(data, 4, duplicates='drop')
+                except:
+                    data = data.astype(str)
+            else:
+                data = data.astype(str)
+        else:
+            data = data.astype(str)
+            if data.nunique() > max_categories:
+                counts = data.value_counts()
+                top_cats = counts.nlargest(max_categories).index
+                data = data.apply(lambda x: x if x in top_cats else 'Otras')
+        
+        df_proc[col] = data
+    
+    n_vars = len(vars_to_analyze)
+    cramersv_matrix = pd.DataFrame(np.nan, index=vars_to_analyze, columns=vars_to_analyze)
+    pvalue_matrix = pd.DataFrame(np.nan, index=vars_to_analyze, columns=vars_to_analyze)
+    chi2_matrix = pd.DataFrame(np.nan, index=vars_to_analyze, columns=vars_to_analyze)
+    
+    for i, var_i in enumerate(vars_to_analyze):
+        for j, var_j in enumerate(vars_to_analyze):
+            if i >= j:
+                continue
+            try:
+                ctab = pd.crosstab(df_proc[var_i], df_proc[var_j])
+                chi2, p, dof, expected = chi2_contingency(ctab)
+                n = ctab.sum().sum()
+                min_dim = min(ctab.shape) - 1
+                cramers_v = np.sqrt(chi2 / (n * min_dim)) if min_dim > 0 else 0
+                
+                cramersv_matrix.loc[var_i, var_j] = cramers_v
+                cramersv_matrix.loc[var_j, var_i] = cramers_v
+                pvalue_matrix.loc[var_i, var_j] = p
+                pvalue_matrix.loc[var_j, var_i] = p
+                chi2_matrix.loc[var_i, var_j] = chi2
+                chi2_matrix.loc[var_j, var_i] = chi2
+                
+            except Exception:
+                continue
+    
+    return cramersv_matrix, pvalue_matrix, chi2_matrix
+
+
+def analizar_distribucion(final_df, question_list, variables_imc=None, valores_si=None):
+    if variables_imc is None:
+        variables_imc = ['IMC_pea002', 'IMC_pea003']
+    
+    if valores_si is None:
+        valores_si = ['SI', 'Sí', '1']
+    
+    print("="*70)
+    print("ANÁLISIS DE DISTRIBUCIÓN")
+    print("="*70)
+    
+    for var in variables_imc:
+        print(f"\n{'='*50}")
+        print(f"DISTRIBUCIÓN DE {var}")
+        print(f"{'='*50}")
+        
+        if var in final_df.columns:
+            distribucion = final_df[var].value_counts(dropna=False)
+            total = len(final_df)
+            resultados = []
+            for valor, cantidad in distribucion.items():
+                porcentaje = (cantidad / total) * 100
+                resultados.append({
+                    'Valor': valor,
+                    'Cantidad': cantidad,
+                    'Porcentaje': f"{porcentaje:.2f}%"
+                })
+            df_resultado = pd.DataFrame(resultados)
+            print(df_resultado.to_string(index=False))
+        else:
+            print(f"Variable no encontrada")
+    
+    print("\n" + "="*70)
+    print("5 LISTAS DE VARIABLES POR % DE 'SI'")
+    print("="*70)
+    
+    lista_0_20, lista_21_40, lista_41_60, lista_61_80, lista_81_100 = [], [], [], [], []
+    
+    for col in question_list:
+        if col in final_df.columns:
+            no_nulos = final_df[col].dropna()
+            if len(no_nulos) > 0:
+                pct_si = (no_nulos.isin(valores_si).sum() / len(no_nulos)) * 100
+                pct_si = round(pct_si, 2)
+                
+                if pct_si <= 20:
+                    lista_0_20.append((col, pct_si))
+                elif pct_si <= 40:
+                    lista_21_40.append((col, pct_si))
+                elif pct_si <= 60:
+                    lista_41_60.append((col, pct_si))
+                elif pct_si <= 80:
+                    lista_61_80.append((col, pct_si))
+                else:
+                    lista_81_100.append((col, pct_si))
+    
+    for lista in [lista_0_20, lista_21_40, lista_41_60, lista_61_80, lista_81_100]:
+        lista.sort(key=lambda x: x[1])
+    
+    print(f"\n1. 0-20% de 'SI' ({len(lista_0_20)} variables):")
+    for col, pct in lista_0_20:
+        print(f"   - {col} ({pct}%)")
+    
+    print(f"\n2. 21-40% de 'SI' ({len(lista_21_40)} variables):")
+    for col, pct in lista_21_40:
+        print(f"   - {col} ({pct}%)")
+    
+    print(f"\n3. 41-60% de 'SI' ({len(lista_41_60)} variables):")
+    for col, pct in lista_41_60:
+        print(f"   - {col} ({pct}%)")
+    
+    print(f"\n4. 61-80% de 'SI' ({len(lista_61_80)} variables):")
+    for col, pct in lista_61_80:
+        print(f"   - {col} ({pct}%)")
+    
+    print(f"\n5. 81-100% de 'SI' ({len(lista_81_100)} variables):")
+    for col, pct in lista_81_100:
+        print(f"   - {col} ({pct}%)")
+    
+    return(lista_0_20, lista_21_40, lista_41_60, lista_61_80, lista_81_100)
+
+
+def generar_sankey_flujo_clases(transiciones_dict, cluster_cols, final_df, figsize=(10, 6), return_image=True):
+    if return_image:
+        try:
+            import kaleido
+        except ImportError:
+            print("Advertencia: kaleido no está instalado. No se podrá generar la imagen del Sankey para PDF.")
+            return None
+
+    if len(cluster_cols) < 2:
+        return None
+
+    nodos = []
+    nodo_indices = {}
+    for i, col in enumerate(cluster_cols):
+        clases = sorted(final_df[col].unique())
+        for cl in clases:
+            nombre = f"{col}_Clase{cl}"
+            nodos.append(nombre)
+            nodo_indices[(col, cl)] = len(nodos) - 1
+
+    source = []
+    target = []
+    value = []
+    for i in range(len(cluster_cols) - 1):
+        col_orig = cluster_cols[i]
+        col_dest = cluster_cols[i + 1]
+        key = f"{col_orig}_{col_dest}"
+        if key not in transiciones_dict:
+            print(f"Advertencia: no se encontró la clave {key}")
+            continue
+        tabla_conteo = transiciones_dict[key]['tabla_conteo']
+        for clase_orig in tabla_conteo.index:
+            for clase_dest in tabla_conteo.columns:
+                flujo = tabla_conteo.loc[clase_orig, clase_dest]
+                if flujo > 0:
+                    try:
+                        source.append(nodo_indices[(col_orig, clase_orig)])
+                        target.append(nodo_indices[(col_dest, clase_dest)])
+                        value.append(flujo)
+                    except KeyError:
+                        print(f"Error: nodo no encontrado para ({col_orig}, {clase_orig}) o ({col_dest}, {clase_dest})")
+                        continue
+
+    if not source:
+        print("No se generaron enlaces para el Sankey.")
+        return None
+
+    fig = go.Figure(data=[go.Sankey(
+        node=dict(
+            pad=15,
+            thickness=20,
+            line=dict(color="black", width=0.5),
+            label=nodos,
+            color="blue"
+        ),
+        link=dict(
+            source=source,
+            target=target,
+            value=value,
+        )
+    )])
+
+    fig.update_layout(
+        title_text="Flujo de clases entre agrupaciones",
+        font_size=10,
+        width=figsize[0]*100,
+        height=figsize[1]*100
+    )
+
+    if return_image:
+        buf = io.BytesIO()
+        try:
+            fig.write_image(buf, format='png')
+        except Exception as e:
+            print(f"Error al generar imagen Sankey con write_image: {e}")
+            try:
+                import plotly.io as pio
+                pio.write_image(fig, buf, format='png')
+            except Exception as e2:
+                print(f"Error también con pio.write_image: {e2}")
+                return None
+        buf.seek(0)
+        from reportlab.lib.utils import Image
+        return Image(buf, width=figsize[0]*inch, height=figsize[1]*inch)
+    else:
+        fig.show()
+        return None
+
+
+def crear_tablas_flujo(transiciones_dict, cluster_cols):
+    tablas = []
+    for i in range(len(cluster_cols) - 1):
+        col_orig = cluster_cols[i]
+        col_dest = cluster_cols[i + 1]
+        key = f"{col_orig}_{col_dest}"
+        if key not in transiciones_dict:
+            continue
+        tabla_conteo = transiciones_dict[key]['tabla_conteo']
+        tabla_porc = transiciones_dict[key]['transicion_porcentaje']
+
+        data = [['Clase Origen', 'Clase Destino', 'Frecuencia Absoluta', 'Porcentaje']]
+        for clase_orig in tabla_conteo.index:
+            for clase_dest in tabla_conteo.columns:
+                conteo = tabla_conteo.loc[clase_orig, clase_dest]
+                if conteo > 0:
+                    pct = tabla_porc.loc[clase_orig, clase_dest] * 100
+                    data.append([
+                        f"{col_orig} - Clase {clase_orig}",
+                        f"{col_dest} - Clase {clase_dest}",
+                        str(conteo),
+                        f"{pct:.1f}%"
+                    ])
+        from reportlab.platypus import Table, TableStyle
+        from reportlab.lib import colors
+        tabla = Table(data, repeatRows=1)
+        tabla.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.grey),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0,0), (-1,0), 8),
+            ('BOTTOMPADDING', (0,0), (-1,0), 6),
+            ('BACKGROUND', (0,1), (-1,-1), colors.beige),
+            ('GRID', (0,0), (-1,-1), 1, colors.black)
+        ]))
+        tablas.append((f"Transición {col_orig} → {col_dest}", tabla))
+    return tablas
+
+
+def _crear_tabla_etiquetas(final_df, cat_vars, obtener_etiqueta):
+    data = [['Variable', 'Etiqueta']]
+    for var in cat_vars:
+        etiqueta = obtener_etiqueta(var) if obtener_etiqueta else ""
+        data.append([var, etiqueta])
+    from reportlab.platypus import Table, TableStyle
+    from reportlab.lib import colors
+    tabla = Table(data, repeatRows=1)
+    tabla.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.grey),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,0), 8),
+        ('BOTTOMPADDING', (0,0), (-1,0), 6),
+        ('BACKGROUND', (0,1), (-1,-1), colors.beige),
+        ('GRID', (0,0), (-1,-1), 1, colors.black)
+    ]))
+    return tabla
+
 
 def generar_reporte_pdf(resultados, filename, final_df, cat_vars, cluster_cols, obtener_etiqueta=None):
     if not isinstance(cluster_cols, (list, tuple, pd.Series, np.ndarray)):
