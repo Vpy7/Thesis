@@ -1,6 +1,6 @@
 # README – Latent Class Analysis (LCA) for Symptom Data
 
-This repository contains a complete pipeline for performing **Latent Class Analysis (LCA)** on categorical symptom data using the **Expectation-Maximization (EM)** algorithm. It also includes extensive post‑analysis tools: class profiles, Cramér’s V associations, hierarchical transitions, and a detailed PDF report. An age‑filtering option is provided to analyse children (≤11 years) and teenagers separately.
+This repository contains a complete pipeline for performing **Latent Class Analysis (LCA)** on categorical DISC-IV symptom data using the **Expectation-Maximization (EM)** algorithm. It also includes extensive post‑analysis tools: class profiles, Cramér’s V associations, hierarchical transitions, and a detailed PDF report. An age‑filtering option is provided to analyse children (≤11 years) and teenagers separately.
 
 ## Requirements
 
@@ -29,7 +29,7 @@ pip install pandas numpy scipy matplotlib seaborn plotly kaleido reportlab sciki
 
 You need to provide the following datasets (CSV format):
 
-- **`symptom_data.csv`** – contains the symptom variables. Must include an `id` column that matches the identifier in the base data.
+- **`symptom_data.csv`** – contains the symptom variables. Must include an `id` column that matches the identifier in the base data. For this dataset, columns should be symptom/question codes (e.g. pad001, which corresponds to the label 'Trouble keeping mind on task for more than a short period of time', according to the provided label dataset) and individual answers should be numerically coded (0,2,3,7,8,9, etc.) following the computer-administered Spanish version of the Diagnostic Interview Schedule for Children Version IV (DISC-IV).
 - **`base_data.csv`** – contains the same identifiers (`inum`) and an age column (`ed1`). Used to filter by age group.
 - **`labels.xlsx`** – mapping of variable codes to labels (provided with this package).
 
@@ -37,7 +37,7 @@ Make sure the column names match those used in the code (you can adjust them in 
 
 ## Workflow
 
-The `Example.ipynb` notebook (or the script below) executes the following steps:
+The `Example.ipynb` notebook executes the following steps:
 
 1. **Import libraries and modules** – loads all necessary Python packages and the custom functions from `lca.py` and `utils.py`.
 2. **Load data** – reads your symptom data, label mapping, and base data (with age).
@@ -55,7 +55,6 @@ The `Example.ipynb` notebook (or the script below) executes the following steps:
    - Transition matrices between consecutive k values
    - Sankey diagram and hierarchical tree of class flows
 7. **Compute pairwise Cramér’s V matrices** – calculates the association between every pair of original variables using `analisis_interacciones_variables` (from `utils.py`). Saves the results as CSV files.
-8. **Diagnostic plots** – for each k, generates histograms of posterior probabilities, assignment certainty, and sample entropy using `plot_lca_results` (from `lca.py`).
 
 All outputs are saved in the current working directory, with optional suffixes (`_child`, `_teen`) when age filtering is applied.
 
@@ -221,44 +220,13 @@ print("="*70)
 excluir = ['id'] + [col for col in output_df.columns if col.startswith('lca_k')]
 cramersv_mat, pvalue_mat, chi2_mat = analisis_interacciones_variables(
     df=output_df,
-    exclude_cols=excluir,
-    max_categories=10
+    exclude_cols=excluir
 )
 
 cramersv_mat.to_csv(f'cramersv_pairwise_matrix{suffix}.csv')
 pvalue_mat.to_csv(f'pvalue_pairwise_matrix{suffix}.csv')
 chi2_mat.to_csv(f'chi2_pairwise_matrix{suffix}.csv')
 print("Pairwise Cramér's V matrices saved to CSV files.")
-
-# -----------------------------------------------------------------------------
-# 12. OPTIONAL: GENERATE DIAGNOSTIC PLOTS FOR EACH LCA MODEL
-# -----------------------------------------------------------------------------
-print("\n" + "="*70)
-print(f"Generating diagnostic plots for {age_group.upper()} group...")
-print("="*70)
-
-for k in range(2, 7):
-    try:
-        plot_lca_results(prob_df, n_classes=k, save_path=f'lca_plot_k{k}{suffix}.png')
-        print(f"Plot for k={k} saved as lca_plot_k{k}{suffix}.png")
-    except Exception as e:
-        print(f"Could not generate plot for k={k}: {e}")
-
-# -----------------------------------------------------------------------------
-# 13. FINAL SUMMARY
-# -----------------------------------------------------------------------------
-print("\n" + "="*70)
-print(f"All analyses completed for {age_group.upper()} group.")
-print("Output files (with suffix '{}'):".format(suffix))
-print(f"  - output_df_lca{suffix}.csv           : DataFrame with original data + class assignments")
-print(f"  - prob_df_lca{suffix}.csv             : DataFrame with membership probabilities")
-print(f"  - metric_df_lca{suffix}.csv           : Model fit metrics (BIC, AIC, etc.)")
-print(f"  - reporte_lca{suffix}.pdf             : Full statistical report")
-print(f"  - cramersv_pairwise_matrix{suffix}.csv: Cramér's V matrix for all variable pairs")
-print(f"  - pvalue_pairwise_matrix{suffix}.csv  : p-values for all variable pairs")
-print(f"  - chi2_pairwise_matrix{suffix}.csv    : χ² statistics for all variable pairs")
-print(f"  - lca_plot_k*{suffix}.png             : Diagnostic plots for each number of classes")
-print("="*70)
 ```
 
 ## Output Files
@@ -272,7 +240,6 @@ print("="*70)
 | `cramersv_pairwise_matrix[_child|_teen].csv` | Pairwise Cramér’s V matrix between all original variables. |
 | `pvalue_pairwise_matrix[_child|_teen].csv` | Corresponding p‑values. |
 | `chi2_pairwise_matrix[_child|_teen].csv` | χ² statistics. |
-| `lca_plot_k*[_child|_teen].png` | Diagnostic plots (posterior distributions, certainty, entropy) for each k. |
 
 ## Customisation
 
@@ -292,12 +259,21 @@ print("="*70)
 
 - **Missing columns**: If some variables in `question_list` are not found in your data, they will be skipped and a warning printed. Make sure your column names match exactly.
 - **ReportLab/Plotly errors**: If PDF generation fails, ensure `reportlab` and `plotly` (with `kaleido`) are installed. You can also run the analysis without generating the PDF by setting `output_pdf=None`.
-- **Memory issues**: For very large datasets, the pairwise Cramér’s V calculation may be slow. Consider reducing the number of variables or increasing the `max_categories` to simplify the contingency tables.
+
 
 ## License
 
 This code is provided as‑is for research purposes. Please cite appropriately if you use it in your work.
 
----
+## Directories
 
-Enjoy exploring your latent classes!
+Other directories in this repository include the results discussed in my thesis work, using a full dataset of N=1558, composed of a child Dataset n=831 amd a Teen Dataset n=727.
+
+* Cramers_lca: Contains the tables that describe discrimination metrics for each symptom related to classification for every value of k in each dataset studied.
+* LCA_metric_n: Contains the tables that describe statistical metrics (e.g. BIC or AIC) for each LCA classification.
+* LCA_n: Contains the tables that describe every individual and its classification alongside the de-coded symptom responses.
+* LCA_prob_n: Contains the tables that describe the posterior probability of every individual associated to every class.
+* chi2_matrix: Contains the chi2 matrices for every single symptom.
+* composiciones: Contains the specific answers to every question.
+* cramers_matrix: Contains the Cramer's V matrices for every single symptom.
+* pvalue_matrix: Contains the p-value matrices for every single symptom.
