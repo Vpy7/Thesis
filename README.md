@@ -233,13 +233,13 @@ print("Pairwise Cramér's V matrices saved to CSV files.")
 
 | File | Description |
 |------|-------------|
-| `output_df_lca[_child|_teen].csv` | Original data plus class assignment columns (`lca_k2` … `lca_k6`). |
-| `prob_df_lca[_child|_teen].csv` | Membership probabilities for each class and k. |
-| `metric_df_lca[_child|_teen].csv` | Model fit metrics (BIC, AIC, log‑likelihood, iterations, convergence, certainty, entropy). |
-| `reporte_lca[_child|_teen].pdf` | Comprehensive PDF report with all statistical analyses and visualisations. |
-| `cramersv_pairwise_matrix[_child|_teen].csv` | Pairwise Cramér’s V matrix between all original variables. |
-| `pvalue_pairwise_matrix[_child|_teen].csv` | Corresponding p‑values. |
-| `chi2_pairwise_matrix[_child|_teen].csv` | χ² statistics. |
+| `output_df_lca[_child_teen].csv` | Original data plus class assignment columns (`lca_k2` … `lca_k6`). |
+| `prob_df_lca[_child_teen].csv` | Membership probabilities for each class and k. |
+| `metric_df_lca[_child_teen].csv` | Model fit metrics (BIC, AIC, log‑likelihood, iterations, convergence, certainty, entropy). |
+| `reporte_lca[_child_teen].pdf` | Comprehensive PDF report with all statistical analyses and visualisations. |
+| `cramersv_pairwise_matrix[_child_teen].csv` | Pairwise Cramér’s V matrix between all original variables. |
+| `pvalue_pairwise_matrix[_child_teen].csv` | Corresponding p‑values. |
+| `chi2_pairwise_matrix[_child_teen].csv` | χ² statistics. |
 
 ## Customisation
 
